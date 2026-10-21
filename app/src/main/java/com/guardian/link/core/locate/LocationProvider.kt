@@ -49,10 +49,10 @@ class LocationProvider(private val context: Context) {
         var registered = false
         try {
             val client = LocationServices.getFusedLocationProviderClient(context)
-            val request = LocationRequest.Builder(intervalMs, Priority.PRIORITY_HIGH_ACCURACY)
+            val request = LocationRequest.Builder(Priority.PRIORITY_HIGH_ACCURACY, intervalMs)
                 .setMinUpdateIntervalMillis(intervalMs / 2)
                 .build()
-            client.requestLocationUpdates(request, callback, ContextCompat.getMainExecutor(context))
+            client.requestLocationUpdates(request, ContextCompat.getMainExecutor(context), callback)
             registered = true
         } catch (t: Throwable) {
             close(t)
