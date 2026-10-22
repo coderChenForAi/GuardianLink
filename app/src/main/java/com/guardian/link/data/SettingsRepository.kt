@@ -2,18 +2,21 @@ package com.guardian.link.data
 
 import android.content.Context
 import androidx.datastore.preferences.core.booleanPreferencesKey
+import androidx.datastore.preferences.core.doublePreferencesKey
 import androidx.datastore.preferences.core.edit
+import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 
 private val Context.dataStore by preferencesDataStore(name = "guardian_settings")
 
 data class AppSettings(
-    val role: Role = Role.WARD,
-    val mode: GuardMode = GuardMode.WIFI,
+    val role: Role = Role.ELDER_DEVICE,
+    val mode: GuardMode = GuardMode.FENCE,
     val peerName: String = "",
     val peerIp: String = "",
     val btAddress: String = "",
@@ -22,8 +25,11 @@ data class AppSettings(
     val lostAfterS: Long = 15,
     val alertOnPeerOffline: Boolean = true,
     val feishuWebhook: String = "",
+    val feishuSecret: String = "",
+    val deviceLabel: String = "",
     val reportEnabled: Boolean = true,
     val reportIntervalS: Long = 30,
+    val awayReportMin: Long = 10,
     val onboarded: Boolean = false,
 )
 
@@ -38,8 +44,11 @@ fun AppSettings.toGuardConfig(): GuardConfig = GuardConfig(
     lostAfterMs = lostAfterS * 1000,
     alertOnPeerOffline = alertOnPeerOffline,
     feishuWebhook = feishuWebhook,
+    feishuSecret = feishuSecret,
+    deviceLabel = deviceLabel.ifBlank { "老人手机" },
     reportEnabled = reportEnabled,
     reportIntervalMs = reportIntervalS * 1000,
+    awayReportIntervalMs = awayReportMin * 60_000,
 )
 
 class SettingsRepository(private val context: Context) {
@@ -54,14 +63,18 @@ class SettingsRepository(private val context: Context) {
     private val lostAfterKey = longPreferencesKey("lost_after_s")
     private val alertPeerOfflineKey = booleanPreferencesKey("alert_peer_offline")
     private val webhookKey = stringPreferencesKey("feishu_webhook")
+    private val secretKey = stringPreferencesKey("feishu_secret")
+    private val deviceLabelKey = stringPreferencesKey("device_label")
     private val reportEnabledKey = booleanPreferencesKey("report_enabled")
     private val reportIntervalKey = longPreferencesKey("report_interval_s")
+    private val awayReportKey = longPreferencesKey("away_report_min")
     private val onboardedKey = booleanPreferencesKey("onboarded")
+    private val armedKey = booleanPreferencesKey("armed")
 
     val all: Flow<AppSettings> = context.dataStore.data.map { p ->
         AppSettings(
-            role = p[roleKey]?.let { runCatching { Role.valueOf(it) }.getOrNull() } ?: Role.WARD,
-            mode = p[modeKey]?.let { runCatching { GuardMode.valueOf(it) }.getOrNull() } ?: GuardMode.WIFI,
+            role = Role.fromStored(p[roleKey]),
+            mode = p[modeKey]?.let { runCatching { GuardMode.valueOf(it) }.getOrNull() } ?: GuardMode.FENCE,
             peerName = p[peerNameKey] ?: "",
             peerIp = p[peerIpKey] ?: "",
             btAddress = p[btAddressKey] ?: "",
@@ -70,8 +83,11 @@ class SettingsRepository(private val context: Context) {
             lostAfterS = p[lostAfterKey] ?: 15,
             alertOnPeerOffline = p[alertPeerOfflineKey] ?: true,
             feishuWebhook = p[webhookKey] ?: "",
+            feishuSecret = p[secretKey] ?: "",
+            deviceLabel = p[deviceLabelKey] ?: "",
             reportEnabled = p[reportEnabledKey] ?: true,
             reportIntervalS = p[reportIntervalKey] ?: 30,
+            awayReportMin = p[awayReportKey] ?: 10,
             onboarded = p[onboardedKey] ?: false,
         )
     }
@@ -81,9 +97,13 @@ class SettingsRepository(private val context: Context) {
         it[onboardedKey] = true
     }
 
-    suspend fun setMode(mode: GuardMode) = context.dataStore.edit {
-        it[modeKey] = mode.name
-    }
+    suspend fun setMode(mode: GuardMode) = context.dataStore.edit { it[modeKey] = mode.name }
+
+    /** 监护开关记忆：设备重启后由 BootCompletedReceiver 据此恢复服务。 */
+    suspend fun isArmed(): Boolean =
+        context.dataStore.data.first()[armedKey] ?: false
+
+    suspend fun setArmed(v: Boolean) = context.dataStore.edit { it[armedKey] = v }
 
     suspend fun setPeer(name: String, ip: String) = context.dataStore.edit {
         it[peerNameKey] = name
@@ -97,16 +117,22 @@ class SettingsRepository(private val context: Context) {
 
     suspend fun saveAdvanced(
         feishuWebhook: String,
+        feishuSecret: String,
+        deviceLabel: String,
         reportEnabled: Boolean,
         reportIntervalS: Long,
+        awayReportMin: Long,
         alertOnPeerOffline: Boolean,
         wifiGraceS: Long,
         heartbeatIntervalS: Long,
         lostAfterS: Long,
     ) = context.dataStore.edit {
         it[webhookKey] = feishuWebhook
+        it[secretKey] = feishuSecret
+        it[deviceLabelKey] = deviceLabel
         it[reportEnabledKey] = reportEnabled
         it[reportIntervalKey] = reportIntervalS
+        it[awayReportKey] = awayReportMin
         it[alertPeerOfflineKey] = alertOnPeerOffline
         it[wifiGraceKey] = wifiGraceS
         it[hbIntervalKey] = heartbeatIntervalS

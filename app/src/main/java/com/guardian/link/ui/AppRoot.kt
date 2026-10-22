@@ -14,6 +14,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import com.guardian.link.data.AppSettings
+import com.guardian.link.data.FenceConfigRepository
 import com.guardian.link.data.SettingsRepository
 import kotlinx.coroutines.launch
 
@@ -22,9 +23,12 @@ fun AppRoot() {
     MaterialTheme(colorScheme = lightColorScheme()) {
         val context = LocalContext.current
         val repo = remember { SettingsRepository(context.applicationContext) }
+        val fenceRepo = remember { FenceConfigRepository(context.applicationContext) }
         val scope = rememberCoroutineScope()
         val settings by repo.all.collectAsState(initial = null as AppSettings?)
         var showSettings by remember { mutableStateOf(false) }
+        var showFence by remember { mutableStateOf(false) }
+        var showEvents by remember { mutableStateOf(false) }
 
         val current = settings
         when {
@@ -33,7 +37,15 @@ fun AppRoot() {
                 scope.launch { repo.completeOnboarding(role) }
             }
             showSettings -> SettingsScreen(repo, onBack = { showSettings = false })
-            else -> HomeScreen(repo, onOpenSettings = { showSettings = true })
+            showFence -> FenceSettingsScreen(repo, fenceRepo, onBack = { showFence = false })
+            showEvents -> EventsScreen(onBack = { showEvents = false })
+            else -> HomeScreen(
+                repo = repo,
+                fenceRepo = fenceRepo,
+                onOpenSettings = { showSettings = true },
+                onOpenFence = { showFence = true },
+                onOpenEvents = { showEvents = true },
+            )
         }
     }
 }

@@ -12,13 +12,27 @@ android {
         applicationId = "com.guardian.link"
         minSdk = 27
         targetSdk = 35
-        versionCode = 1
-        versionName = "0.1.0"
+        versionCode = 2
+        versionName = "2.0.0"
+    }
+
+    signingConfigs {
+        // 固定调试证书入库：保证 SHA1 稳定，便于在高德开放平台绑定包名+SHA1
+        getByName("debug") {
+            storeFile = file("debug.keystore")
+            storePassword = "guardianlink2026"
+            keyAlias = "guardianlink"
+            keyPassword = "guardianlink2026"
+        }
     }
 
     buildTypes {
+        debug {
+            signingConfig = signingConfigs.getByName("debug")
+        }
         release {
             isMinifyEnabled = false
+            signingConfig = signingConfigs.getByName("debug")
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
@@ -46,5 +60,12 @@ dependencies {
     implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.8.6")
     implementation("androidx.datastore:datastore-preferences:1.1.1")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.9.0")
-    implementation("com.google.android.gms:play-services-location:21.3.0")
+    implementation("androidx.work:work-runtime-ktx:2.9.1")
+
+    // 高德地图 + 定位 SDK（Maven Central，已核实版本存在）
+    implementation("com.amap.api:3dmap:9.8.3")
+    implementation("com.amap.api:location:6.5.1")
+
+    testImplementation("junit:junit:4.13.2")
+    testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.9.0")
 }
