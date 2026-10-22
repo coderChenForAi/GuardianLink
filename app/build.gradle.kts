@@ -62,9 +62,9 @@ dependencies {
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.9.0")
     implementation("androidx.work:work-runtime-ktx:2.9.1")
 
-    // 高德地图 + 定位 SDK（Maven Central，已核实版本存在）
+    // 高德 3D 地图 SDK（Maven Central，已核实版本存在）
+    // 注意：3dmap 已内置 com.amap.api.location.* 定位类，勿再单独引入 com.amap.api:location，否则重复类冲突
     implementation("com.amap.api:3dmap:9.8.3")
-    implementation("com.amap.api:location:6.5.1")
 
     testImplementation("junit:junit:4.13.2")
     testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.9.0")

@@ -48,6 +48,7 @@ import com.guardian.link.data.Role
 import com.guardian.link.data.SettingsRepository
 import com.guardian.link.data.StateStore
 import com.guardian.link.data.buildAlertConfig
+import com.guardian.link.data.toGuardConfig
 import com.guardian.link.work.FeishuRetryWorker
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -240,7 +241,7 @@ class GuardService : Service() {
             }
             // 恢复上次状态：进行中的离家不重复告警，只补一条位置更新
             stateStore.load()?.let { (s, ep, bs) ->
-                machine.restore(parseState(s), ep, bs?.let(::parseState))
+                machine.restore(parseState(s) ?: GuardianState.HOME_SAFE, ep, bs?.let(::parseState))
             }
             val resumedAway = machine.state == GuardianState.AWAY_ALERTED ||
                 machine.state == GuardianState.AWAY_TRACKING
