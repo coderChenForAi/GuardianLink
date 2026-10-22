@@ -117,6 +117,31 @@ CI：push 后 GitHub Actions 自动执行 `testDebugUnitTest assembleDebug` 并�
 
 仅收集监护必需的位置与设备状态；位置仅存于设备本地（最近 200 条，自动淘汰）并发送到**用户自己配置的**飞书群与已授权监护人设备；日志不输出完整精确坐标，不记录 Webhook/配对密钥。
 
+## iOS 版本（GuardianLinkIOS/）
+
+SwiftUI 实现，最低 iOS 16.0（覆盖 iPhone 12 全部可升级系统，含 iOS 26）。**在 Mac 上构建**（Windows 无法编译 iOS）：
+
+```bash
+cd GuardianLinkIOS
+brew install xcodegen      # 首次
+xcodegen generate          # 生成 GuardianLink.xcodeproj
+open GuardianLink.xcodeproj
+```
+
+- 选中 GuardianLink target → Signing & Capabilities → 用你的 Apple ID 选 Personal Team；
+- iPhone 连接 Mac → Xcode 运行即安装（免费账号 7 天有效期，到期重跑）；分发建议 TestFlight。
+- CI：`.github/workflows/ios.yml` 在 macOS runner 上自动 `xcodegen + xcodebuild test/build`（模拟器），用于编译与单测验证。
+
+iOS 端与 Android 端的差异（平台能力所致，如实说明）：
+
+| 能力 | Android | iOS |
+|---|---|---|
+| 围栏监测 | 自研去抖引擎 + 前台服务持续定位 | **系统级 CLCircularRegion 围栏**（可在后台唤醒 App）+ 后台定位，去抖/状态机同一套算法 |
+| 告警方式 | ALARM 流最大音量循环 | 系统通知（时间敏感级）+ 震动 + 前台弹窗，**无法**强制大音量循环 |
+| 地图 | 高德 SDK（需申请 Key） | 系统 MapKit（无需 Key）；飞书链接仍为高德 URI |
+| 飞书/事件/多监护人协议 | ✓ | ✓ 同一套消息格式与签名算法 |
+| 后台限制 | 厂商 ROM 差异 | 权限须"始终允许"；勿强杀 App；长时间后台定位受系统调度影响 |
+
 ## 工程结构
 
 ```

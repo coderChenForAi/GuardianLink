@@ -1,0 +1,54 @@
+name: GuardianLink
+options:
+  bundleIdPrefix: com.guardian.link
+  deploymentTarget:
+    iOS: "16.0"
+  createIntermediateGroups: true
+settings:
+  base:
+    SWIFT_VERSION: "5.0"
+    CODE_SIGN_STYLE: Automatic
+    DEVELOPMENT_TEAM: ""
+targets:
+  GuardianLink:
+    type: application
+    platform: iOS
+    sources:
+      - path: Sources
+    info:
+      path: Sources/Info.plist
+      properties:
+        CFBundleDisplayName: GuardianLink
+        CFBundleShortVersionString: "2.0.0"
+        CFBundleVersion: "2"
+        UILaunchScreen: {}
+        UISupportedInterfaceOrientations: [UIInterfaceOrientationPortrait]
+        NSLocationWhenInUseUsageDescription: 用于获取当前定位，判断是否离开家庭安全区域，并在地图上选点。
+        NSLocationAlwaysAndWhenInUseUsageDescription: 开启家庭围栏监护后，需要在后台持续监测是否离开家庭安全区域，离家时提醒您和家人。
+        NSLocalNetworkUsageDescription: 用于在同一 Wi-Fi 下向已配对的监护人设备同步离家事件（局域网功能）。
+        UIBackgroundModes: [location]
+        ITSAppUsesNonExemptEncryption: false
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.guardian.link.ios
+        TARGETED_DEVICE_FAMILY: "1"
+        INFOPLIST_KEY_CFBundleDisplayName: GuardianLink
+  GuardianLinkTests:
+    type: bundle.unit-test
+    platform: iOS
+    sources:
+      - path: Tests
+    dependencies:
+      - target: GuardianLink
+schemes:
+  GuardianLink:
+    build:
+      targets:
+        GuardianLink: all
+    run:
+      config: Debug
+    test:
+      config: Debug
+      gatherCoverageData: false
+      targets:
+        - GuardianLinkTests
