@@ -65,11 +65,13 @@ actor EventStore {
         load().filter { $0.sendStatus == .pending || $0.sendStatus == .failedRetriable }
     }
 
-    func markSent(id: String, at: Int64) {
+    @discardableResult
+    func markSent(id: String, at: Int64) -> GuardianEvent? {
         mutate(id: id) { $0.copyWithStatus(.sent, error: nil, sentAt: at) }
     }
 
-    func markFailed(id: String, retryable: Bool, error: String) {
+    @discardableResult
+    func markFailed(id: String, retryable: Bool, error: String) -> GuardianEvent? {
         mutate(id: id) {
             $0.copyWithStatus(
                 retryable ? .failedRetriable : .failedPermanent,
@@ -80,7 +82,8 @@ actor EventStore {
         }
     }
 
-    func markAcked(id: String, guardianId: String) {
+    @discardableResult
+    func markAcked(id: String, guardianId: String) -> GuardianEvent? {
         mutate(id: id) { e in
             guard !e.ackedBy.contains(guardianId) else { return e }
             var copy = e
