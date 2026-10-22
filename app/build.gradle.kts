@@ -4,6 +4,16 @@ plugins {
     id("org.jetbrains.kotlin.plugin.compose")
 }
 
+// 高德 Key 不入库：优先级 环境变量 AMAP_KEY（CI Secret）> local.properties 的 amapKey（本地）> 占位符
+val amapKey: String by lazy {
+    val fromEnv = System.getenv("AMAP_KEY")
+    if (!fromEnv.isNullOrBlank()) return@lazy fromEnv.trim()
+    val props = java.util.Properties()
+    val f = rootProject.file("local.properties")
+    if (f.exists()) f.inputStream().use { props.load(it) }
+    props.getProperty("amapKey", "").trim().ifBlank { "REPLACE_WITH_YOUR_AMAP_KEY" }
+}
+
 android {
     namespace = "com.guardian.link"
     compileSdk = 35
@@ -14,6 +24,7 @@ android {
         targetSdk = 35
         versionCode = 2
         versionName = "2.0.0"
+        manifestPlaceholders["AMAP_KEY"] = amapKey
     }
 
     signingConfigs {

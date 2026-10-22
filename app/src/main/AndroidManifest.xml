@@ -37,10 +37,10 @@
         android:supportsRtl="true"
         android:theme="@android:style/Theme.Material.Light.NoActionBar">
 
-        <!-- 高德开放平台申请：包名 com.guardian.link + debug.keystore 的 SHA1 -->
+        <!-- 高德 Key 由构建注入：CI 走 Secret(AMAP_KEY)，本地写在 local.properties 的 amapKey -->
         <meta-data
             android:name="com.amap.api.v2.apikey"
-            android:value="REPLACE_WITH_YOUR_AMAP_KEY" />
+            android:value="${AMAP_KEY}" />
 
         <activity
             android:name=".MainActivity"

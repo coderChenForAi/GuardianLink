@@ -21,6 +21,8 @@ jobs:
         uses: gradle/actions/setup-gradle@v4
 
       - name: Build debug APK
+        env:
+          AMAP_KEY: ${{ secrets.AMAP_KEY }}
         run: |
           chmod +x gradlew
           ./gradlew testDebugUnitTest assembleDebug --stacktrace
