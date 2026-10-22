@@ -48,10 +48,10 @@ struct HomeView: View {
         }
     }
 
-    // MARK: - 各分区
+    // MARK: - 各分区（全部使用经典 Section 形式，避免多尾闭包重载解析问题）
 
     private var statusSection: some View {
-        Section {
+        Section(header: Text("监护状态")) {
             LabeledContent("角色", value: settingsStore.settings.role.label)
             if isElder {
                 LabeledContent("围栏监护", value: running ? monitor.state.label : "未开启")
@@ -62,45 +62,36 @@ struct HomeView: View {
                 LabeledContent("最近在线", value: formatAge(pairing.snapshot.elder?.lastSeen))
                 LabeledContent("最近事件", value: recentEventText)
             }
-            LabeledContent(
-                "飞书告警",
-                value: settingsStore.settings.feishuWebhook.isEmpty ? "⚠️ 未配置（仅本机提醒）" : "✅ 已配置"
-            )
+            LabeledContent("飞书告警", value: feishuText)
             if let err = lan.lastError {
                 LabeledContent("局域网", value: err)
             }
-        } header: {
-            Text("监护状态")
         }
     }
 
     private var fenceSection: some View {
-        Section {
+        Section(header: Text("家庭安全区域")) {
             NavigationLink("设置家庭安全区域") { FenceSetupView() }
-        } header: {
-            Text("家庭安全区域")
         }
     }
 
     private var guardianGroupSection: some View {
-        Section {
+        Section(header: Text("多监护人（局域网）")) {
             LabeledContent("配对码", value: pairing.snapshot.pairingCode)
             ForEach(pairing.snapshot.guardians) { g in
-                LabeledContent("监护人 \(guardianName(g.name, id: g.id))", value: formatAge(g.lastSeen))
+                LabeledContent("监护人 \(g.name.isEmpty ? g.id : g.name)", value: formatAge(g.lastSeen))
             }
             Button("重新生成配对码") { pairing.regeneratePairingCode() }
-        } header: {
-            Text("多监护人（局域网）")
         }
     }
 
     private var pairSection: some View {
-        Section {
+        Section(header: Text("守护对（同一 Wi-Fi）")) {
             if let elder = pairing.snapshot.elder {
                 LabeledContent("老人机", value: guardianName(elder.name, id: elder.id))
                 Button("解除配对", role: .destructive) { pairing.clearElder() }
             } else {
-                TextField("老人机 IP，如 192.168.1.23", text: $pairIp)
+                TextField("老人机 IP", text: $pairIp)
                     .keyboardType(.decimalPad)
                 Button("输入配对码配对…") {
                     pairCode = ""
@@ -108,13 +99,11 @@ struct HomeView: View {
                 }
                 .disabled(pairIp.isEmpty || pairingInFlight)
             }
-        } header: {
-            Text("守护对（同一 Wi-Fi）")
         }
     }
 
     private var controlSection: some View {
-        Section {
+        Section(footer: Text("监护状态与位置是两回事——设备在线不代表人在家。围栏监测在本机独立运行，离家后通过飞书通知家人。")) {
             Button {
                 if running { monitor.stop() } else { monitor.start() }
             } label: {
@@ -122,24 +111,24 @@ struct HomeView: View {
                     .frame(maxWidth: .infinity)
                     .foregroundColor(running ? .red : .accentColor)
             }
-        } footer: {
-            Text("监护状态与位置是两回事——设备在线不代表人在家。围栏监测在本机独立运行，离家后通过飞书通知家人。")
         }
     }
 
     private var healthSection: some View {
-        Section {
+        Section(header: Text("设备健康")) {
             LabeledContent("后台监护服务", value: running ? "✅ 运行中" : "未开启")
             LabeledContent("最近飞书成功", value: formatAge(monitor.lastFeishuOkAt))
             if let err = monitor.lastError {
                 LabeledContent("最近错误", value: err)
             }
-        } header: {
-            Text("设备健康")
         }
     }
 
     // MARK: - 辅助
+
+    private var feishuText: String {
+        settingsStore.settings.feishuWebhook.isEmpty ? "⚠️ 未配置（仅本机提醒）" : "✅ 已配置"
+    }
 
     private var elderText: String {
         guard let elder = pairing.snapshot.elder else { return "未配对" }

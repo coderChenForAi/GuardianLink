@@ -14,12 +14,10 @@ struct FenceSetupView: View {
 
     var body: some View {
         List {
-            Section {
+            Section(footer: Text("在地图上长按选择家庭中心点（GCJ-02 与 WGS-84 的差异由系统定位处理，发送飞书链接时自动转换）")) {
                 FenceMapView(center: $center, radiusM: radiusM)
                     .frame(height: 320)
                     .listRowInsets(EdgeInsets())
-            } footer: {
-                Text("在地图上长按选择家庭中心点（GCJ-02 与 WGS-84 的差异由系统定位处理，发送飞书链接时自动转换）")
             }
 
             Section("围栏参数") {
@@ -64,14 +62,12 @@ struct FenceSetupView: View {
                 }
             }
 
-            Section("围栏与定位状态") {
+            Section(footer: Text("离开/返回由连续多次定位确认（默认 3 次），精度差于 100 米的定位会被忽略，避免漂移误报。后台监测需要「始终允许」定位权限。")) {
                 LabeledContent("当前监护状态", value: monitor.monitorRunning ? monitor.state.label : "未开启监护")
                 LabeledContent("最近有效定位", value: formatAge(monitor.lastFix?.time))
                 if let fix = monitor.lastFix {
                     LabeledContent("最近定位精度", value: "±\(Int(fix.accuracyM)) 米")
                 }
-            } footer: {
-                Text("离开/返回由连续多次定位确认（默认 3 次），精度差于 100 米的定位会被忽略，避免漂移误报。后台监测需要「始终允许」定位权限。")
             }
         }
         .navigationTitle("家庭安全区域")
