@@ -9,7 +9,7 @@ on:
 
 jobs:
   build:
-    runs-on: macos-14
+    runs-on: macos-15
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -21,6 +21,9 @@ jobs:
         working-directory: GuardianLinkIOS
         run: xcodegen generate
 
+      - name: Show simulators
+        run: xcrun simctl list devices available | head -30
+
       - name: Run unit tests (simulator)
         working-directory: GuardianLinkIOS
         run: |
@@ -28,7 +31,7 @@ jobs:
           xcodebuild test \
             -project GuardianLink.xcodeproj \
             -scheme GuardianLink \
-            -destination 'platform=iOS Simulator,name=iPhone 15' \
+            -destination 'platform=iOS Simulator,name=iPhone 16' \
             CODE_SIGNING_ALLOWED=NO 2>&1 | tee ios-test.log
 
       - name: Build app (simulator)
@@ -38,7 +41,7 @@ jobs:
           xcodebuild build \
             -project GuardianLink.xcodeproj \
             -scheme GuardianLink \
-            -destination 'platform=iOS Simulator,name=iPhone 15' \
+            -destination 'platform=iOS Simulator,name=iPhone 16' \
             CODE_SIGNING_ALLOWED=NO 2>&1 | tee ios-build.log
 
       - name: Upload logs
