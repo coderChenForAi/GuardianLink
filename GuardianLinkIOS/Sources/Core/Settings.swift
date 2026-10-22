@@ -135,6 +135,10 @@ final class PairingStore: ObservableObject {
         }
     }
 
+    func clearElder() {
+        update { $0.elder = nil }
+    }
+
     func resetGroup() {
         update {
             $0.groupId = "gl-" + String(UUID().uuidString.replacingOccurrences(of: "-", with: "").prefix(10))
