@@ -17,13 +17,13 @@ final class FeishuClassifierTests: XCTestCase {
     }
 
     func testRateLimitAndServerErrorsAreRetriable() {
-        XCTAssertCaseFail(FeishuClassifier.classify(httpCode: 429, feishuCode: nil, feishuMsg: nil), expected: .retriable)
-        XCTAssertCaseFail(FeishuClassifier.classify(httpCode: 502, feishuCode: nil, feishuMsg: nil), expected: .retriable)
+        assertCase(FeishuClassifier.classify(httpCode: 429, feishuCode: nil, feishuMsg: nil), isRetriable: true)
+        assertCase(FeishuClassifier.classify(httpCode: 502, feishuCode: nil, feishuMsg: nil), isRetriable: true)
     }
 
     func testOtherHttpErrorsArePermanent() {
-        XCTAssertCaseFail(FeishuClassifier.classify(httpCode: 400, feishuCode: nil, feishuMsg: nil), expected: .permanent)
-        XCTAssertCaseFail(FeishuClassifier.classify(httpCode: 401, feishuCode: nil, feishuMsg: nil), expected: .permanent)
+        assertCase(FeishuClassifier.classify(httpCode: 400, feishuCode: nil, feishuMsg: nil), isRetriable: false)
+        assertCase(FeishuClassifier.classify(httpCode: 401, feishuCode: nil, feishuMsg: nil), isRetriable: false)
     }
 
     func testParseFeishuCodeSupportsMultipleShapes() {
@@ -54,16 +54,18 @@ final class FeishuClassifierTests: XCTestCase {
     }
 }
 
-private func XCTAssertCaseFail(
+private func assertCase(
     _ result: FeishuResult,
-    expected: FeishuResult,
+    isRetriable: Bool,
     file: StaticString = #filePath,
     line: UInt = #line
 ) {
-    switch (result, expected) {
-    case (.retriable, .retriable), (.permanent, .permanent):
-        break
-    default:
-        XCTFail("expected \(expected), got \(result)", file: file, line: line)
+    switch result {
+    case .retriable:
+        XCTAssertTrue(isRetriable, "expected retriable, got \(result)", file: file, line: line)
+    case .permanent:
+        XCTAssertFalse(isRetriable, "expected permanent, got \(result)", file: file, line: line)
+    case .success:
+        XCTFail("unexpected success", file: file, line: line)
     }
 }
