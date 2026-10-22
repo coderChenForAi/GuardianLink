@@ -4,7 +4,6 @@ import com.guardian.link.core.feishu.FeishuClassifier
 import com.guardian.link.core.feishu.FeishuClient
 import com.guardian.link.core.feishu.FeishuResult
 import com.guardian.link.data.FenceConfig
-import com.guardian.link.data.FenceConfigRepository
 import com.guardian.link.core.geo.FenceParams
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -76,6 +75,6 @@ class ParamsAndFeishuTest {
         val p = FenceParams()
         assertTrue(p.maxAccuracyM in 10f..500f)
         assertTrue(p.confirmOutsideFixes in 1..10)
-        assertEquals(FenceConfigRepository.MIN_RADIUS_M, 50)
+        assertEquals(FenceConfig.MIN_RADIUS_M, 50)
     }
 }
