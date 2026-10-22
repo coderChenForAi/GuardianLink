@@ -68,4 +68,6 @@ dependencies {
 
     testImplementation("junit:junit:4.13.2")
     testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.9.0")
+    // 本地单测中 android.jar 的 org.json 是桩类，引入真实实现
+    testImplementation("org.json:json:20231013")
 }

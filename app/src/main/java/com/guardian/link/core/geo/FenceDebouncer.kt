@@ -56,7 +56,8 @@ class FenceDebouncer(private val params: FenceParams = FenceParams()) {
                 insideStreak = 0
                 return listOf(FenceSignal.ConfirmedEnter(fix))
             }
-            return emptyList()
+            // 确认离家后首次回到围栏内也要上报，供状态机进入"疑似返家"
+            return if (insideStreak == 1) listOf(FenceSignal.RawInside(fix)) else emptyList()
         }
         return if (insideStreak == 1) listOf(FenceSignal.RawInside(fix)) else emptyList()
     }
