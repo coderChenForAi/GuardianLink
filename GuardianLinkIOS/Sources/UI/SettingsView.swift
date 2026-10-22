@@ -18,7 +18,7 @@ struct SettingsView: View {
                 TextField("设备/老人显示名", text: labelBinding)
             }
 
-            Section("飞书位置告警") {
+            Section(header: Text("飞书位置告警")) {
                 TextField("Webhook URL（留空则不上报）", text: webhookBinding)
                 SecureField("签名校验密钥（未开启签名则留空）", text: secretBinding)
                 Stepper("离家位置更新间隔: \(settingsStore.settings.awayReportMinutes) 分钟",
@@ -45,15 +45,17 @@ struct SettingsView: View {
                 if !testResult.isEmpty {
                     Text(testResult).font(.footnote).foregroundColor(.secondary)
                 }
-            } footer: {
                 Text("Webhook 与密钥仅保存在本机；机器人若配置自定义关键词，请包含 GuardianLink。")
+                    .font(.footnote)
+                    .foregroundColor(.secondary)
             }
 
-            Section("监护策略") {
+            Section(header: Text("监护策略")) {
                 Stepper("定位失效判定: \(settingsStore.settings.staleAfterMinutes) 分钟",
                         value: staleBinding, in: 3...60)
-            } footer: {
                 Text("离家/返家确认默认需连续 3 次有效定位（约 45 秒），精度差于 100 米的定位被忽略。")
+                    .font(.footnote)
+                    .foregroundColor(.secondary)
             }
 
             Section("守护组（配对）") {

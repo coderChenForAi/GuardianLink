@@ -46,9 +46,10 @@ final class LanSyncService: ObservableObject {
             return
         }
         listener = l
+        let connQueue = DispatchQueue(label: "lan.sync.conn")
         l.newConnectionHandler = { [weak self] conn in
+            conn.start(queue: connQueue)
             self?.pump(conn: conn, role: role)
-            conn.start(queue: DispatchQueue(label: "lan.sync"))
         }
         l.start(queue: DispatchQueue(label: "lan.sync.listen"))
         if role == .guardian {
@@ -143,7 +144,7 @@ final class LanSyncService: ObservableObject {
 
     // MARK: - 收包处理
 
-    private func pump(conn: NWConnection, role: DeviceRole) {
+    private nonisolated func pump(conn: NWConnection, role: DeviceRole) {
         conn.receiveMessage { [weak self] data, _, _, error in
             if let data {
                 Task { @MainActor in self?.handle(data: data, from: conn.endpoint, role: role) }
@@ -234,10 +235,15 @@ final class LanSyncService: ObservableObject {
             Task { @MainActor in
                 guard let self else { return }
                 guard let elder = self.pairing.snapshot.elder, !elder.host.isEmpty else { return }
-                self.send(self.base("ping", Self.nowMs()) + ["token": elder.token],
-                          host: elder.host, port: elder.port)
+                var msg = self.base("ping", Self.nowMs())
+                msg["token"] = elder.token
+                self.send(msg, host: elder.host, port: elder.port)
             }
         }
+    }
+
+    private nonisolated static func nowMs() -> Int64 {
+        Int64(Date().timeIntervalSince1970 * 1000)
     }
 
     private func postLocalNotification(title: String, body: String) {

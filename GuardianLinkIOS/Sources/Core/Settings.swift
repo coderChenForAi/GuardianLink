@@ -124,6 +124,17 @@ final class PairingStore: ObservableObject {
         update { $0.elder = elder }
     }
 
+    func touchElder(at: Int64) {
+        update { snap in
+            if let e = snap.elder {
+                snap.elder = ElderEntry(
+                    id: e.id, name: e.name, token: e.token,
+                    groupId: e.groupId, host: e.host, port: e.port, lastSeen: at
+                )
+            }
+        }
+    }
+
     func resetGroup() {
         update {
             $0.groupId = "gl-" + String(UUID().uuidString.replacingOccurrences(of: "-", with: "").prefix(10))
