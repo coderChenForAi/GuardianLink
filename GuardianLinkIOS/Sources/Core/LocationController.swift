@@ -67,9 +67,10 @@ final class LocationController: NSObject, CLLocationManagerDelegate {
     private var canRunBackground: Bool { manager.authorizationStatus == .authorizedAlways }
 
     func stopMonitoringOnly() {
-        if let old = homeRegion { manager.stopMonitoring(for: old) }
+        for region in manager.monitoredRegions where region.identifier == Self.regionId {
+            manager.stopMonitoring(for: region)
+        }
         homeRegion = nil
-        manager.stopMonitoring()
     }
 
     func stopAll() {
