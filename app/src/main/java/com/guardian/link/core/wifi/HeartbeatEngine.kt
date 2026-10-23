@@ -47,6 +47,9 @@ class HeartbeatEngine(
     fun lastSeenAgoMs(): Long =
         if (lastSeen == 0L) Long.MAX_VALUE else now() - lastSeen
 
+    /** 对端最近一次心跳到达的绝对时间；从未收到过返回 0。 */
+    fun lastSeenAtMs(): Long = lastSeen
+
     private val _events = MutableSharedFlow<Event>(replay = 4, extraBufferCapacity = 64)
     val events: SharedFlow<Event> = _events
 

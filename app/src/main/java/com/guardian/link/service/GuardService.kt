@@ -382,14 +382,21 @@ class GuardService : Service() {
 
     private fun startWifiMode(cfg: GuardConfig) {
         val peer = cfg.peerName.ifBlank { cfg.peerIp }
+        appendHeartbeatLog(
+            "▶ 心跳检测启动：每 ${cfg.heartbeatIntervalMs / 1000}s 发一次，${cfg.lostAfterMs / 1000}s 未收到心跳判定失联"
+        )
         val monitor = WifiMonitor(scope)
         wifiMonitor = monitor
         monitor.start(applicationContext, cfg.wifiGraceMs)
         engineJobs += scope.launch {
-            monitor.lostConfirmed.collect { onLinkProblem(AlertReason_LEFT_WIFI) }
+            monitor.lostConfirmed.collect {
+                appendHeartbeatLog("⚠ 本机 WiFi 断开（宽限 ${cfg.wifiGraceMs / 1000}s 后确认）")
+                onLinkProblem(AlertReason_LEFT_WIFI)
+            }
         }
         engineJobs += scope.launch {
             monitor.connected.collect { up ->
+                if (up == true) appendHeartbeatLog("本机 WiFi 已连接")
                 val s = state.value
                 if (up == true && s is GuardState.Alerting && s.reason == AlertReason_LEFT_WIFI) {
                     onLinkRestored(peer)
@@ -409,16 +416,29 @@ class GuardService : Service() {
         engineJobs += scope.launch {
             hb.events.collect { ev ->
                 when (ev) {
-                    HeartbeatEngine.Event.PeerSeen -> onLinkRestored(peer)
-                    HeartbeatEngine.Event.PeerLost ->
+                    HeartbeatEngine.Event.PeerSeen -> {
+                        val wasDown = state.value is GuardState.Alerting || state.value is GuardState.Degraded
+                        appendHeartbeatLog(
+                            if (wasDown) "✅ 连接恢复：重新收到对端心跳" else "✅ 连接建立：开始收到对端心跳"
+                        )
+                        onLinkRestored(peer)
+                    }
+                    HeartbeatEngine.Event.PeerLost -> {
+                        appendHeartbeatLog(
+                            "⚠ 心跳丢失：超过 ${cfg.lostAfterMs / 1000}s 未收到对端包" +
+                                if (cfg.alertOnPeerOffline) "，触发失联告警" else "（对端离线告警未开启）"
+                        )
                         if (cfg.alertOnPeerOffline) onLinkProblem(AlertReason_PEER_LOST)
-                    is HeartbeatEngine.Event.ConnectTimeout ->
+                    }
+                    is HeartbeatEngine.Event.ConnectTimeout -> {
+                        appendHeartbeatLog("⚠ 连接超时：启动 ${ev.waitedMs / 60000} 分钟从未收到对端心跳")
                         if (state.value !is GuardState.Alerting && state.value !is GuardState.Connected) {
                             state.value = GuardState.Degraded(
                                 peer,
                                 "启动 ${ev.waitedMs / 60000} 分钟仍未收到对端心跳；请确认对端已开始监护、绑定 IP 有效且路由器未开 AP 隔离",
                             )
                         }
+                    }
                 }
             }
         }
@@ -433,8 +453,10 @@ class GuardService : Service() {
                 val match = found.firstOrNull { it.name == peer }
                     ?: found.singleOrNull()?.takeIf { cfg.peerName.isBlank() }
                 if (match != null && match.ip != hb.currentPeerIp) {
-                    Log.i(TAG, "peer ip refreshed: ${hb.currentPeerIp} -> ${match.ip} (${match.name})")
+                    val oldIp = hb.currentPeerIp
                     hb.updatePeerIp(match.ip)
+                    Log.i(TAG, "peer ip refreshed: $oldIp -> ${match.ip} (${match.name})")
+                    appendHeartbeatLog("对端地址已刷新：$oldIp → ${match.ip}")
                 }
             }
         }
@@ -555,8 +577,14 @@ class GuardService : Service() {
             lastFixAt = lastFix?.time ?: 0,
             lastFeishuOkAt = lastFeishuOkAt,
             lastSyncAt = lastSyncAt,
+            peerLastSeenAt = heartbeat?.lastSeenAtMs() ?: 0L,
             updatedAt = System.currentTimeMillis(),
         )
+    }
+
+    private fun appendHeartbeatLog(text: String) {
+        val entry = HeartbeatLogEntry(System.currentTimeMillis(), text)
+        heartbeatLog.value = (listOf(entry) + heartbeatLog.value).take(HEARTBEAT_LOG_MAX)
     }
 
     // ---------------------------------------------------------------- 前台/通知
@@ -673,6 +701,7 @@ class GuardService : Service() {
         private const val HEALTH_TICK_MS = 30_000L
         private const val PEER_REFRESH_MS = 60_000L
         private const val PEER_DISCOVER_TIMEOUT_MS = 3_000L
+        private const val HEARTBEAT_LOG_MAX = 30
 
         const val ACTION_START = "com.guardian.link.START"
         const val ACTION_STOP = "com.guardian.link.STOP"
@@ -713,10 +742,16 @@ class GuardService : Service() {
             val lastFixAt: Long = 0,
             val lastFeishuOkAt: Long = 0,
             val lastSyncAt: Long = 0,
+            val peerLastSeenAt: Long = 0,
             val updatedAt: Long = 0,
         )
 
         val health = MutableStateFlow(HealthSnapshot())
+
+        /** WiFi 模式心跳事件日志（最新在前，保留最近 [HEARTBEAT_LOG_MAX] 条）。 */
+        data class HeartbeatLogEntry(val at: Long, val text: String)
+
+        val heartbeatLog = MutableStateFlow<List<HeartbeatLogEntry>>(emptyList())
 
         /** 最近事件（老人端=已发送事件；监护人端=已接收事件）。 */
         val recentEvents = MutableStateFlow<List<GuardianEvent>>(emptyList())

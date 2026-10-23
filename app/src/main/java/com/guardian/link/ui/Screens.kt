@@ -84,6 +84,10 @@ private fun statusText(state: GuardState): String = when (state) {
     is GuardState.Alerting -> "⚠️ ${state.reason.title}"
 }
 
+private val hbTimeFmt = SimpleDateFormat("HH:mm:ss", Locale.CHINA)
+
+private fun hhmmss(ts: Long): String = hbTimeFmt.format(Date(ts))
+
 private fun startGuard(context: Context, s: AppSettings) {
     if (s.mode == GuardMode.WIFI && s.peerIp.isBlank()) {
         toast(context, "请先绑定对端（扫描或手动填 IP）")
@@ -165,6 +169,7 @@ fun HomeScreen(
     val fenceUi by GuardService.fenceState.collectAsState()
     val health by GuardService.health.collectAsState()
     val recent by GuardService.recentEvents.collectAsState()
+    val hbLog by GuardService.heartbeatLog.collectAsState()
 
     val pairingStore = remember { PairingStore(File(context.filesDir, "pairing.json")) }
     var pairedElder by remember { mutableStateOf<PairingStore?>(null) }
@@ -381,6 +386,33 @@ fun HomeScreen(
                 if (s.role == Role.ELDER_DEVICE) {
                     StatusRow("最近飞书成功", formatAge(health.lastFeishuOkAt))
                     StatusRow("最近监护人同步", formatAge(health.lastSyncAt))
+                }
+            }
+        }
+
+        // ------------------------------------------------ 对端连接（WiFi 连接监护）
+        if (s.mode == GuardMode.WIFI) {
+            Spacer(Modifier.height(16.dp))
+            Card(modifier = Modifier.fillMaxWidth()) {
+                Column(Modifier.padding(16.dp)) {
+                    Text("对端连接 · 心跳日志", fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                    Spacer(Modifier.height(6.dp))
+                    StatusRow(
+                        "对端设备",
+                        if (s.peerIp.isBlank()) "未绑定（设置中扫描/手动输入 IP）"
+                        else "${s.peerName.ifBlank { "未命名设备" }} · ${s.peerIp}"
+                    )
+                    StatusRow("连接状态", statusText(guardState))
+                    StatusRow("最近心跳", if (health.peerLastSeenAt > 0) formatAge(health.peerLastSeenAt) else "未收到过")
+                    StatusRow("心跳参数", "每 ${s.heartbeatIntervalS}s 一次，${s.lostAfterS}s 无心跳判定失联")
+                    Spacer(Modifier.height(8.dp))
+                    if (hbLog.isEmpty()) {
+                        Text("暂无心跳记录，监护启动后显示", fontSize = 12.sp, color = Color.Gray)
+                    } else {
+                        hbLog.take(8).forEach { e ->
+                            Text("${hhmmss(e.at)}  ${e.text}", fontSize = 12.sp, lineHeight = 18.sp)
+                        }
+                    }
                 }
             }
         }
@@ -694,8 +726,8 @@ fun SettingsScreen(repo: SettingsRepository, onBack: () -> Unit) {
         }
         Spacer(Modifier.height(4.dp))
         NumberField("WiFi 断开宽限（秒），默认 5", graceS) { graceS = it }
-        NumberField("心跳间隔（秒），默认 5", hbS) { hbS = it }
-        NumberField("心跳失联判定（秒），默认 15", lostS) { lostS = it }
+        NumberField("心跳间隔（秒），默认 2", hbS) { hbS = it }
+        NumberField("心跳失联判定（秒），默认 5", lostS) { lostS = it }
 
         Spacer(Modifier.height(16.dp))
         Button(
@@ -710,8 +742,8 @@ fun SettingsScreen(repo: SettingsRepository, onBack: () -> Unit) {
                         awayReportMin = awayReportMin.toLongOrNull()?.coerceIn(1, 120) ?: 10,
                         alertOnPeerOffline = alertPeerOffline,
                         wifiGraceS = graceS.toLongOrNull()?.coerceIn(1, 60) ?: 5,
-                        heartbeatIntervalS = hbS.toLongOrNull()?.coerceIn(2, 60) ?: 5,
-                        lostAfterS = lostS.toLongOrNull()?.coerceIn(5, 300) ?: 15,
+                        heartbeatIntervalS = hbS.toLongOrNull()?.coerceIn(2, 60) ?: 2,
+                        lostAfterS = lostS.toLongOrNull()?.coerceIn(5, 300) ?: 5,
                     )
                     toast(context, "已保存")
                 }
