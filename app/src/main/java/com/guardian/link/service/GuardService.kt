@@ -33,6 +33,7 @@ import com.guardian.link.core.state.GuardianStateMachine
 import com.guardian.link.core.state.GuardianTransition
 import com.guardian.link.core.sync.LanSyncEngine
 import com.guardian.link.core.wifi.HeartbeatEngine
+import com.guardian.link.core.wifi.PeerDiscoverer
 import com.guardian.link.core.wifi.WifiMonitor
 import com.guardian.link.data.EventStore
 import com.guardian.link.data.EventType
@@ -395,10 +396,11 @@ class GuardService : Service() {
                 }
             }
         }
+        val selfName = "${Build.MODEL}·${cfg.role.label}"
         val hb = HeartbeatEngine(
             scope = scope,
             peerIp = cfg.peerIp,
-            selfName = "${Build.MODEL}·${cfg.role.label}",
+            selfName = selfName,
             intervalMs = cfg.heartbeatIntervalMs,
             lostAfterMs = cfg.lostAfterMs,
         )
@@ -410,6 +412,29 @@ class GuardService : Service() {
                     HeartbeatEngine.Event.PeerSeen -> onLinkRestored(peer)
                     HeartbeatEngine.Event.PeerLost ->
                         if (cfg.alertOnPeerOffline) onLinkProblem(AlertReason_PEER_LOST)
+                    is HeartbeatEngine.Event.ConnectTimeout ->
+                        if (state.value !is GuardState.Alerting && state.value !is GuardState.Connected) {
+                            state.value = GuardState.Degraded(
+                                peer,
+                                "启动 ${ev.waitedMs / 60000} 分钟仍未收到对端心跳；请确认对端已开始监护、绑定 IP 有效且路由器未开 AP 隔离",
+                            )
+                        }
+                }
+            }
+        }
+        // 对端 IP 失效自愈：断连期间低频广播重新发现对端并刷新地址（对端换 IP / 绑定填错都能自动纠正）
+        engineJobs += scope.launch {
+            while (isActive) {
+                delay(PEER_REFRESH_MS)
+                if (hb.lastSeenAgoMs() < cfg.lostAfterMs) continue // 连接正常，无需刷新
+                val found = runCatching { PeerDiscoverer.discover(PEER_DISCOVER_TIMEOUT_MS) }
+                    .getOrDefault(emptyList())
+                    .filter { it.name != selfName } // 排除本机回环应答
+                val match = found.firstOrNull { it.name == peer }
+                    ?: found.singleOrNull()?.takeIf { cfg.peerName.isBlank() }
+                if (match != null && match.ip != hb.currentPeerIp) {
+                    Log.i(TAG, "peer ip refreshed: ${hb.currentPeerIp} -> ${match.ip} (${match.name})")
+                    hb.updatePeerIp(match.ip)
                 }
             }
         }
@@ -579,7 +604,7 @@ class GuardService : Service() {
             GuardState.Idle -> "未开启监护"
             is GuardState.Connecting -> "连接中：${s.detail}"
             is GuardState.Connected -> "监护中 · ${s.peer} 连接正常"
-            is GuardState.Degraded -> "链路抖动：${s.detail}"
+            is GuardState.Degraded -> "链路异常：${s.detail}"
             is GuardState.Alerting -> "⚠️ ${s.reason.title}"
         }
         runCatching {
@@ -646,6 +671,8 @@ class GuardService : Service() {
         private const val STALE_AFTER_MS = 10 * 60_000L
         private const val STALE_TICK_MS = 60_000L
         private const val HEALTH_TICK_MS = 30_000L
+        private const val PEER_REFRESH_MS = 60_000L
+        private const val PEER_DISCOVER_TIMEOUT_MS = 3_000L
 
         const val ACTION_START = "com.guardian.link.START"
         const val ACTION_STOP = "com.guardian.link.STOP"

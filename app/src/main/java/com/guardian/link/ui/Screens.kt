@@ -80,7 +80,7 @@ private fun statusText(state: GuardState): String = when (state) {
     GuardState.Idle -> "未开启监护"
     is GuardState.Connecting -> if (state.detail.isBlank()) "连接中…" else "连接中：${state.detail}"
     is GuardState.Connected -> "监护中 · ${state.peer} 连接正常"
-    is GuardState.Degraded -> "链路抖动：${state.detail}"
+    is GuardState.Degraded -> "链路异常：${state.detail}"
     is GuardState.Alerting -> "⚠️ ${state.reason.title}"
 }
 
